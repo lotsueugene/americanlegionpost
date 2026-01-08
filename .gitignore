@@ -30,6 +30,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Deployment documentation
+DEPLOYMENT.md
+DEPLOYMENT_CHECKLIST.md
+READY_TO_DEPLOY.md
 
 backend/service-account.json
 

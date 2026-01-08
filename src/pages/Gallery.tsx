@@ -95,7 +95,7 @@ const Gallery = () => {
           {error && (
             <div className="text-center py-16">
               <p className="text-red-500 mb-2">Error loading images: {error}</p>
-              <p className="text-muted-foreground text-sm">Make sure the backend server is running on http://localhost:5001</p>
+              <p className="text-muted-foreground text-sm">Please try refreshing the page or contact us if the issue persists.</p>
             </div>
           )}
 
@@ -111,7 +111,7 @@ const Gallery = () => {
                       className="group relative aspect-square cursor-pointer overflow-hidden rounded-lg bg-muted shadow-card hover:shadow-elevated transition-all"
                     >
                       <img
-                        src={`http://localhost:5001${image.src}`}
+                        src={image.src}
                         alt={image.title}
                         className="absolute inset-0 w-full h-full object-cover"
                         onError={(e) => {
@@ -147,7 +147,7 @@ const Gallery = () => {
           <div className="relative aspect-video bg-muted flex items-center justify-center">
             {selectedImage && (
               <img
-                src={`http://localhost:5001${selectedImage.fullSrc || selectedImage.src}`}
+                src={selectedImage.fullSrc || selectedImage.src}
                 alt={selectedImage.title}
                 className="w-full h-full object-contain"
                 onError={(e) => {
