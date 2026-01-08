@@ -1,7 +1,6 @@
 {
   "name": "legion-api",
   "version": "1.0.0",
-  "type": "module",
   "dependencies": {
     "googleapis": "^170.0.0"
   }

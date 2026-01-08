@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+const { google } = require("googleapis");
 
 // Initialize Google Drive API
 const getAuth = () => {
@@ -10,7 +10,7 @@ const getAuth = () => {
   });
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -60,4 +60,4 @@ export default async function handler(req, res) {
     console.error("Error proxying image:", err);
     res.status(500).json({ error: "Failed to load image", details: err.message });
   }
-}
+};

@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+const { google } = require("googleapis");
 
 // Initialize Google Drive API
 const getAuth = () => {
@@ -17,7 +17,7 @@ const folderIds = {
   Hall: "1uQg07bp2IL84byq8zZHHLgFapGzDgmSg",
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -71,4 +71,4 @@ export default async function handler(req, res) {
     console.error("Error fetching images:", err);
     res.status(500).json({ error: "Failed to fetch images", details: err.message });
   }
-}
+};
