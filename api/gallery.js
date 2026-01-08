@@ -2,10 +2,25 @@ const { google } = require("googleapis");
 
 // Initialize Google Drive API
 const getAuth = () => {
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT environment variable is not set');
+  }
+
+  let credentials;
+  try {
+    // Try to parse as JSON
+    credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+  } catch (parseError) {
+    // If it's already an object (shouldn't happen but just in case)
+    if (typeof process.env.GOOGLE_SERVICE_ACCOUNT === 'object') {
+      credentials = process.env.GOOGLE_SERVICE_ACCOUNT;
+    } else {
+      throw new Error(`Failed to parse GOOGLE_SERVICE_ACCOUNT: ${parseError.message}`);
+    }
+  }
+
   return new google.auth.GoogleAuth({
-    credentials: process.env.GOOGLE_SERVICE_ACCOUNT
-      ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT)
-      : undefined,
+    credentials,
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
   });
 };
