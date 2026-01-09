@@ -12,6 +12,7 @@ const navigation = [
   { name: "Hall Rentals", href: "/hall-rentals" },
   { name: "Calendar", href: "/calendar" },
   { name: "Memorials", href: "/memorials" },
+  { name: "Contact", href: "/contact" },
 ];
 
 const Header = () => {

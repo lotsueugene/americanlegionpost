@@ -11,7 +11,7 @@ const features = [
     icon: Users,
     title: "Join Our Family",
     description: "Become a member and join thousands of veterans dedicated to serving our community.",
-    link: "/officers",
+    link: "/contact",
   },
   {
     icon: Calendar,

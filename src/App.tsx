@@ -11,6 +11,7 @@ import SonsOfLegion from "./pages/SonsOfLegion";
 import HallRentals from "./pages/HallRentals";
 import CalendarPage from "./pages/Calendar";
 import Memorials from "./pages/Memorials";
+import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/hall-rentals" element={<HallRentals />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/memorials" element={<Memorials />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
