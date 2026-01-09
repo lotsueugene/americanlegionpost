@@ -265,7 +265,11 @@ const Contact = () => {
                       <span className="font-medium">By Appointment</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Saturday - Sunday</span>
+                      <span className="text-muted-foreground">Saturday</span>
+                      <span className="font-medium">By Appointment</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Sunday</span>
                       <span className="font-medium">Closed</span>
                     </div>
                   </div>
