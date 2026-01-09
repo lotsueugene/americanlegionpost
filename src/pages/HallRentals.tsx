@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
-import { Star, Check, Calendar, Users, Clock, ChevronLeft, ChevronRight, X, RefreshCw } from "lucide-react";
+import { Star, Check, Calendar, Users, Clock, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,15 @@ const amenities = [
   "Tables and chairs available",
 ];
 
+// Booking data type
+type DateBooking = {
+  date: string;
+  messages: string[]; // Array of messages/notes for bookings on this date
+};
+
 const HallRentals = () => {
   const { toast } = useToast();
-  const [bookedDates, setBookedDates] = useState<string[]>([]);
+  const [bookings, setBookings] = useState<DateBooking[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState("");
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -40,95 +46,57 @@ const HallRentals = () => {
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
 
+  // Helper function to parse CSV properly handling quoted fields
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+
+    return result.map(field => field.trim());
+  };
+
   // Fetch booked dates from Google Sheets CSV
   useEffect(() => {
     const fetchBookedDates = () => {
       // Google Sheets CSV URL for hall bookings
-      // Expected CSV format: date (YYYY-MM-DD format)
+      // Expected CSV format: date (YYYY-MM-DD format), message (booking notes/time slot info)
       const googleSheetsUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQCxun4HNNwVuxlgOz-zwvOgMKQW3V9Ou99ndvFawIS6lOuMjPJqYR0X27bQH30ykamLQre7lvq9ROl/pub?gid=0&single=true&output=csv";
 
       if (!googleSheetsUrl) {
-        // No URL configured yet, use empty array
         return;
       }
 
-      // Add cache-busting parameter to force fresh data
       const cacheBustUrl = `${googleSheetsUrl}&timestamp=${Date.now()}`;
 
       fetch(cacheBustUrl)
         .then(res => res.text())
         .then(csv => {
           const lines = csv.trim().split("\n");
-          const headers = lines[0].split(",");
+          const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
 
-          const dates = lines
-            .slice(1)
-            .map(line => {
-              const values = line.split(",");
-              const obj = Object.fromEntries(
-                headers.map((h, i) => [h.trim(), values[i]?.trim()])
-              );
-              // Normalize date format: convert YYYY/MM/DD to YYYY-MM-DD
-              // and ensure month and day are zero-padded
-              let dateStr = obj.date;
-              if (dateStr) {
-                // Replace slashes with hyphens
-                dateStr = dateStr.replace(/\//g, "-");
+          const dateIndex = headers.indexOf("date");
+          const messageIndex = headers.indexOf("message") !== -1 ? headers.indexOf("message") : headers.indexOf("messages");
 
-                // Parse and reformat to ensure zero-padding
-                const parts = dateStr.split("-");
-                if (parts.length === 3) {
-                  const year = parts[0];
-                  const month = parts[1].padStart(2, "0");
-                  const day = parts[2].padStart(2, "0");
-                  dateStr = `${year}-${month}-${day}`;
-                }
-              }
-              return dateStr;
-            })
-            .filter(date => date); // remove empty rows
+          const bookingsMap = new Map<string, DateBooking>();
 
-          console.log("Booked dates loaded:", dates);
-          setBookedDates(dates);
-          setLastUpdate(new Date());
-          setIsRefreshing(false);
-        })
-        .catch(err => {
-          console.error("Failed to load booked dates", err);
-          setIsRefreshing(false);
-        });
-    };
+          lines.slice(1).forEach(line => {
+            const values = parseCSVLine(line);
 
-    // Fetch immediately on mount
-    fetchBookedDates();
-
-    // Poll for updates every 5 seconds for near real-time updates
-    const interval = setInterval(fetchBookedDates, 5000);
-
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleManualRefresh = () => {
-    setIsRefreshing(true);
-    // Force a refresh by triggering the fetch
-    const googleSheetsUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQCxun4HNNwVuxlgOz-zwvOgMKQW3V9Ou99ndvFawIS6lOuMjPJqYR0X27bQH30ykamLQre7lvq9ROl/pub?gid=0&single=true&output=csv";
-    const cacheBustUrl = `${googleSheetsUrl}&timestamp=${Date.now()}`;
-
-    fetch(cacheBustUrl)
-      .then(res => res.text())
-      .then(csv => {
-        const lines = csv.trim().split("\n");
-        const headers = lines[0].split(",");
-
-        const dates = lines
-          .slice(1)
-          .map(line => {
-            const values = line.split(",");
-            const obj = Object.fromEntries(
-              headers.map((h, i) => [h.trim(), values[i]?.trim()])
-            );
-            let dateStr = obj.date;
+            let dateStr = values[dateIndex]?.trim();
             if (dateStr) {
               dateStr = dateStr.replace(/\//g, "-");
               const parts = dateStr.split("-");
@@ -138,18 +106,94 @@ const HallRentals = () => {
                 const day = parts[2].padStart(2, "0");
                 dateStr = `${year}-${month}-${day}`;
               }
-            }
-            return dateStr;
-          })
-          .filter(date => date);
 
-        console.log("Manual refresh - Booked dates loaded:", dates);
-        setBookedDates(dates);
+              const message = messageIndex !== -1 ? values[messageIndex]?.trim() || "" : "";
+
+              if (!bookingsMap.has(dateStr)) {
+                bookingsMap.set(dateStr, {
+                  date: dateStr,
+                  messages: [],
+                });
+              }
+
+              const booking = bookingsMap.get(dateStr)!;
+              if (message) {
+                booking.messages.push(message);
+              }
+            }
+          });
+
+          const bookingsArray = Array.from(bookingsMap.values());
+          console.log("Bookings loaded:", bookingsArray);
+          setBookings(bookingsArray);
+          setLastUpdate(new Date());
+          setIsRefreshing(false);
+        })
+        .catch(err => {
+          console.error("Failed to load booked dates", err);
+          setIsRefreshing(false);
+        });
+    };
+
+    fetchBookedDates();
+    const interval = setInterval(fetchBookedDates, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    const googleSheetsUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQCxun4HNNwVuxlgOz-zwvOgMKQW3V9Ou99ndvFawIS6lOuMjPJqYR0X27bQH30ykamLQre7lvq9ROl/pub?gid=0&single=true&output=csv";
+    const cacheBustUrl = `${googleSheetsUrl}&timestamp=${Date.now()}`;
+
+    fetch(cacheBustUrl)
+      .then(res => res.text())
+      .then(csv => {
+        const lines = csv.trim().split("\n");
+        const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+
+        const dateIndex = headers.indexOf("date");
+        const messageIndex = headers.indexOf("message") !== -1 ? headers.indexOf("message") : headers.indexOf("messages");
+
+        const bookingsMap = new Map<string, DateBooking>();
+
+        lines.slice(1).forEach(line => {
+          const values = parseCSVLine(line);
+
+          let dateStr = values[dateIndex]?.trim();
+          if (dateStr) {
+            dateStr = dateStr.replace(/\//g, "-");
+            const parts = dateStr.split("-");
+            if (parts.length === 3) {
+              const year = parts[0];
+              const month = parts[1].padStart(2, "0");
+              const day = parts[2].padStart(2, "0");
+              dateStr = `${year}-${month}-${day}`;
+            }
+
+            const message = messageIndex !== -1 ? values[messageIndex]?.trim() || "" : "";
+
+            if (!bookingsMap.has(dateStr)) {
+              bookingsMap.set(dateStr, {
+                date: dateStr,
+                messages: [],
+              });
+            }
+
+            const booking = bookingsMap.get(dateStr)!;
+            if (message) {
+              booking.messages.push(message);
+            }
+          }
+        });
+
+        const bookingsArray = Array.from(bookingsMap.values());
+        console.log("Manual refresh - Bookings loaded:", bookingsArray);
+        setBookings(bookingsArray);
         setLastUpdate(new Date());
         setIsRefreshing(false);
         toast({
           title: "Calendar Updated",
-          description: `Loaded ${dates.length} booked date(s)`,
+          description: `Loaded ${bookingsArray.length} booking(s)`,
         });
       })
       .catch(err => {
@@ -174,9 +218,16 @@ const HallRentals = () => {
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
   const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
 
-  const isDateBooked = (day: number) => {
+  // Get booking info for a specific date
+  const getDateBooking = (day: number): DateBooking | undefined => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return bookedDates.includes(dateStr);
+    return bookings.find(b => b.date === dateStr);
+  };
+
+  // Check if a date has any bookings
+  const hasBookings = (day: number): boolean => {
+    const booking = getDateBooking(day);
+    return !!booking && booking.messages.length > 0;
   };
 
   const isDateInPast = (day: number) => {
@@ -187,8 +238,8 @@ const HallRentals = () => {
   };
 
   const handleDateClick = (day: number) => {
-    if (isDateBooked(day) || isDateInPast(day)) {
-      return; // Don't allow selecting booked or past dates
+    if (isDateInPast(day)) {
+      return; // Don't allow selecting past dates
     }
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     setSelectedDate(dateStr);
@@ -420,18 +471,19 @@ const HallRentals = () => {
                     {/* Days of the month */}
                     {Array.from({ length: daysInMonth }).map((_, index) => {
                       const day = index + 1;
-                      const booked = isDateBooked(day);
+                      const hasBooking = hasBookings(day);
                       const past = isDateInPast(day);
                       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                       const selected = selectedDate === dateStr;
+                      const booking = getDateBooking(day);
 
                       return (
                         <div
                           key={day}
                           onClick={() => handleDateClick(day)}
-                          className={`min-h-[60px] border-b border-r p-2 text-center transition-all ${
-                            booked
-                              ? "bg-red-50 cursor-not-allowed"
+                          className={`min-h-[90px] border-b border-r p-1.5 text-center transition-all ${
+                            hasBooking
+                              ? "bg-blue-50 cursor-pointer hover:bg-blue-100"
                               : past
                               ? "bg-muted/50 cursor-not-allowed"
                               : selected
@@ -440,17 +492,21 @@ const HallRentals = () => {
                           }`}
                         >
                           <div className={`text-sm font-medium ${
-                            booked ? "text-red-600" : past ? "text-muted-foreground/50" : ""
+                            hasBooking ? "text-blue-600" : past ? "text-muted-foreground/50" : ""
                           }`}>
                             {day}
                           </div>
-                          {booked && (
-                            <div className="mt-1">
-                              <X className="h-4 w-4 text-red-600 mx-auto" />
-                              <div className="text-xs text-red-600">Booked</div>
+                          {hasBooking && booking && (
+                            <div className="mt-0.5 space-y-0.5">
+                              <Clock className="h-3 w-3 text-blue-600 mx-auto" />
+                              {booking.messages.map((msg, idx) => (
+                                <div key={idx} className="text-[8px] text-blue-600 font-medium leading-tight px-0.5">
+                                  {msg}
+                                </div>
+                              ))}
                             </div>
                           )}
-                          {!booked && !past && selected && (
+                          {!hasBooking && !past && selected && (
                             <div className="mt-1">
                               <Check className="h-4 w-4 text-gold mx-auto" />
                               <div className="text-xs text-gold font-medium">Selected</div>
@@ -470,8 +526,8 @@ const HallRentals = () => {
                   <span>Available</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 bg-red-50 border border-red-200"></div>
-                  <span>Booked</span>
+                  <div className="h-4 w-4 bg-blue-50 border border-blue-200"></div>
+                  <span>Has Booking(s)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 bg-gold/20 border border-gold"></div>
@@ -601,7 +657,7 @@ const HallRentals = () => {
                         rows={4}
                         value={formData.message}
                         onChange={handleChange}
-                        placeholder="Tell us more about your event, preferred time, special requirements, etc..."
+                        placeholder="Tell us about your event and preferred time slot (e.g., 'Morning: 8am-12pm', 'Afternoon: 1pm-5pm', 'Evening: 6pm-10pm', or 'All day')"
                       />
                     </div>
 
