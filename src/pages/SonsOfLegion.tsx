@@ -1,6 +1,7 @@
 import Layout from "@/components/layout/Layout";
 import { Star, Users, Heart, Award, Flag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 
 const pillars = [
   { icon: Users, title: "Veterans Affairs & Rehabilitation" },
@@ -177,12 +178,12 @@ const SonsOfLegion = () => {
             Interested in joining the Sons of The American Legion at Post #318?
             Contact us to learn more about membership.
           </p>
-          <a
-            href="mailto:Americanlegion318@yahoo.com"
+          <Link
+            to="/contact"
             className="inline-flex items-center gap-2 rounded-lg bg-gold px-6 py-3 text-gold-foreground hover:bg-gold/90 transition-colors font-semibold"
           >
             Contact Us
-          </a>
+          </Link>
         </div>
       </section>
     </Layout>
