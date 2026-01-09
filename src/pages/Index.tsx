@@ -317,16 +317,11 @@ const Index = () => {
                 </a>
               </Button>
             </div>
-            <div className="h-[400px] rounded-lg overflow-hidden shadow-elevated">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3096.8447855589877!2d-94.68526!3d39.195556!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x87c0ef3e3e3e3e3e%3A0x3e3e3e3e3e3e3e3e!2s11%20Main%20St%2C%20Parkville%2C%20MO%2064152!5e0!3m2!1sen!2sus!4v1234567890"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="American Legion Post #318 Location"
+            <div className="rounded-lg overflow-hidden shadow-elevated">
+              <img
+                src="/alley_bar.png"
+                alt="The World Famous Alley Bar at American Legion Post #318"
+                className="w-full h-full object-cover"
               />
             </div>
           </div>
