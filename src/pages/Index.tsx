@@ -27,9 +27,138 @@ const features = [
   },
 ];
 
+type RecurringEvent = {
+  id: string;
+  title: string;
+  time: string;
+  location: string;
+  recurrence: 'monthly' | 'weekly';
+  config: {
+    weekOfMonth?: number | number[];
+    dayOfWeek?: number;
+  };
+};
+
+const SPECIAL_RECURRING_EVENTS: RecurringEvent[] = [
+  {
+    id: 'legion-meeting',
+    title: 'Monthly Legion Membership Meeting',
+    time: '6:00 PM',
+    location: 'Legion Hall',
+    recurrence: 'monthly',
+    config: { weekOfMonth: 2, dayOfWeek: 4 }
+  },
+  {
+    id: 'sons-meeting',
+    title: 'Monthly Sons Membership Meeting',
+    time: '6:00 PM',
+    location: 'Legion Hall',
+    recurrence: 'monthly',
+    config: { weekOfMonth: 2, dayOfWeek: 3 }
+  },
+  {
+    id: 'trivia-night',
+    title: 'Trivia Night',
+    time: '6:30 PM',
+    location: 'Legion Hall',
+    recurrence: 'weekly',
+    config: { dayOfWeek: 2 }
+  },
+  {
+    id: 'veterans-lunch',
+    title: "Saturday Veteran's Lunch",
+    time: 'Noon to 2:00 PM',
+    location: 'Legion Hall',
+    recurrence: 'weekly',
+    config: { dayOfWeek: 6 }
+  },
+  {
+    id: 'final-friday',
+    title: 'Final Friday Live Music',
+    time: '7:00 PM',
+    location: 'Legion Hall',
+    recurrence: 'monthly',
+    config: {
+      weekOfMonth: -1,
+      dayOfWeek: 5
+    }
+  }
+];
+
+function getNthDayOfMonth(year: number, month: number, dayOfWeek: number, week: number): Date | null {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  if (week === -1) {
+    for (let day = daysInMonth; day >= 1; day--) {
+      const date = new Date(year, month, day);
+      if (date.getDay() === dayOfWeek) {
+        return date;
+      }
+    }
+    return null;
+  }
+
+  const firstDay = new Date(year, month, 1);
+  const firstDayOfWeek = firstDay.getDay();
+
+  let offset = (dayOfWeek - firstDayOfWeek + 7) % 7;
+  let targetDate = 1 + offset + (week - 1) * 7;
+
+  if (targetDate > daysInMonth) return null;
+
+  return new Date(year, month, targetDate);
+}
+
+function generateRecurringEventOccurrences(
+  event: RecurringEvent,
+  year: number,
+  month: number
+): Array<{ date: string; title: string; time: string; location: string; isSpecialEvent: true }> {
+  const occurrences = [];
+
+  if (event.recurrence === 'monthly') {
+    const { weekOfMonth, dayOfWeek } = event.config;
+    const weeks = Array.isArray(weekOfMonth) ? weekOfMonth : [weekOfMonth!];
+
+    for (const week of weeks) {
+      const date = getNthDayOfMonth(year, month, dayOfWeek!, week);
+      if (date) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        occurrences.push({
+          date: dateStr,
+          title: event.title,
+          time: event.time,
+          location: event.location,
+          isSpecialEvent: true
+        });
+      }
+    }
+  } else if (event.recurrence === 'weekly') {
+    const { dayOfWeek } = event.config;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      if (date.getDay() === dayOfWeek) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        occurrences.push({
+          date: dateStr,
+          title: event.title,
+          time: event.time,
+          location: event.location,
+          isSpecialEvent: true
+        });
+      }
+    }
+  }
+
+  return occurrences;
+}
+
 const Index = () => {
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
-  const [allEvents, setAllEvents] = useState<any[]>([]);
+  const [sheetsEvents, setSheetsEvents] = useState<any[]>([]);
+  const [mergedEvents, setMergedEvents] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const currentMonth = currentDate.getMonth();
@@ -55,16 +184,61 @@ const Index = () => {
           })
           .filter(e => e.date && e.title); // remove empty rows
 
-        setAllEvents(parsedEvents);
-
-        const upcoming = parsedEvents
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // earliest first
-          .slice(0, 3); // only show first 3 upcoming events
-
-        setUpcomingEvents(upcoming);
+        setSheetsEvents(parsedEvents);
       })
       .catch(err => console.error("Failed to load events", err));
   }, []);
+
+  // Merge special events with sheets events
+  useEffect(() => {
+    // Generate special events for the next 12 months
+    const specialEvents: any[] = [];
+    const today = new Date();
+
+    for (let monthOffset = 0; monthOffset < 12; monthOffset++) {
+      const targetDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+      const targetYear = targetDate.getFullYear();
+      const targetMonth = targetDate.getMonth();
+
+      SPECIAL_RECURRING_EVENTS.forEach(recurringEvent => {
+        const occurrences = generateRecurringEventOccurrences(
+          recurringEvent,
+          targetYear,
+          targetMonth
+        );
+        specialEvents.push(...occurrences);
+      });
+    }
+
+    const sheetsEventsByDate = new Map(sheetsEvents.map(e => [e.date, e]));
+
+    const filteredSpecialEvents = specialEvents.filter(se => {
+      return !sheetsEventsByDate.has(se.date);
+    });
+
+    const merged = [...sheetsEvents, ...filteredSpecialEvents];
+    setMergedEvents(merged);
+  }, [sheetsEvents]);
+
+  // Update upcoming events whenever merged events change
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcoming = mergedEvents
+      .filter(event => {
+        const eventDate = new Date(event.date + 'T00:00:00');
+        return eventDate >= today;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.date + 'T00:00:00');
+        const dateB = new Date(b.date + 'T00:00:00');
+        return dateA.getTime() - dateB.getTime();
+      })
+      .slice(0, 3);
+
+    setUpcomingEvents(upcoming);
+  }, [mergedEvents]);
 
   const getDaysInMonth = (month: number, year: number) => {
     return new Date(year, month + 1, 0).getDate();
@@ -79,7 +253,7 @@ const Index = () => {
 
   const getEventsForDate = (day: number) => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return allEvents.filter(event => event.date === dateStr);
+    return mergedEvents.filter(event => event.date === dateStr);
   };
 
   const prevMonth = () => {
@@ -244,7 +418,11 @@ const Index = () => {
                     {dayEvents.map((event, eventIndex) => (
                       <div
                         key={eventIndex}
-                        className="mt-1 truncate rounded bg-primary px-1 py-0.5 text-xs text-primary-foreground"
+                        className={`mt-1 truncate rounded px-1 py-0.5 text-xs ${
+                          event.isSpecialEvent
+                            ? 'bg-gold/80 text-gold-foreground'
+                            : 'bg-primary text-primary-foreground'
+                        }`}
                       >
                         {event.title}
                       </div>
@@ -272,10 +450,10 @@ const Index = () => {
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className="flex h-16 w-16 flex-col items-center justify-center rounded-lg bg-primary text-primary-foreground">
                     <span className="text-xs font-medium">
-                      {new Date(event.date).toLocaleString("en-US", { month: "short" })}
+                      {new Date(event.date + 'T00:00:00').toLocaleString("en-US", { month: "short" })}
                     </span>
                     <span className="text-xl font-bold">
-                      {new Date(event.date).getDate()}
+                      {new Date(event.date + 'T00:00:00').getDate()}
                     </span>
                   </div>
                   <div>
